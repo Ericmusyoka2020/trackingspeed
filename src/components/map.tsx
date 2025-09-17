@@ -3,7 +3,7 @@
 import type { LatLngExpression } from "leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect, memo } from "react";
+import { useEffect, memo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -49,27 +49,50 @@ interface MapProps {
   savedRoute: LatLngExpression[] | null;
 }
 
-function Map({ position, path, plannedRoute, savedRoute }: MapProps) {
+const MapComponent = ({ position, path, plannedRoute, savedRoute }: MapProps) => {
+  const mapRef = useRef<L.Map | null>(null);
+  const [map, setMap] = useState<L.Map | null>(null);
   const defaultPosition: LatLngExpression = [51.505, -0.09];
 
-  return (
-    <MapContainer
-      center={position || defaultPosition}
-      zoom={13}
-      scrollWheelZoom={true}
-      className="h-full w-full z-0"
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {position && <Marker position={position} icon={userLocationIcon} />}
-      {path.length > 0 && <Polyline positions={path} color="hsl(var(--primary))" weight={5} />}
-      {plannedRoute.length > 0 && <Polyline positions={plannedRoute} color="hsl(var(--accent))" weight={5} dashArray="5, 10" />}
-       {savedRoute && <Polyline positions={savedRoute} color="gray" weight={5} dashArray="5, 5" />}
-      <MapViewUpdater position={position} />
-    </MapContainer>
-  );
-}
+  useEffect(() => {
+    // This effect ensures that the map instance is cleaned up when the component unmounts.
+    // It's a robust way to prevent the "Map container is already initialized" error in React's strict mode.
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
 
-export default memo(Map);
+  return (
+    <div id="map" className="h-full w-full z-0">
+      <MapContainer
+        center={position || defaultPosition}
+        zoom={13}
+        scrollWheelZoom={true}
+        className="h-full w-full"
+        whenCreated={(mapInstance) => {
+          mapRef.current = mapInstance;
+          setMap(mapInstance);
+        }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {map && (
+          <>
+            {position && <Marker position={position} icon={userLocationIcon} />}
+            {path.length > 0 && <Polyline positions={path} color="hsl(var(--primary))" weight={5} />}
+            {plannedRoute.length > 0 && <Polyline positions={plannedRoute} color="hsl(var(--accent))" weight={5} dashArray="5, 10" />}
+            {savedRoute && <Polyline positions={savedRoute} color="gray" weight={5} dashArray="5, 5" />}
+            <MapViewUpdater position={position} />
+          </>
+        )}
+      </MapContainer>
+    </div>
+  );
+};
+
+export default memo(MapComponent);
