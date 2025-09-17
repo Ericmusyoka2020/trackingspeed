@@ -3,7 +3,7 @@
 import type { LatLngExpression } from "leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect } from "react";
+import { useEffect, memo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -49,7 +49,7 @@ interface MapProps {
   savedRoute: LatLngExpression[] | null;
 }
 
-export default function Map({ position, path, plannedRoute, savedRoute }: MapProps) {
+function Map({ position, path, plannedRoute, savedRoute }: MapProps) {
   const defaultPosition: LatLngExpression = [51.505, -0.09];
 
   return (
@@ -71,3 +71,5 @@ export default function Map({ position, path, plannedRoute, savedRoute }: MapPro
     </MapContainer>
   );
 }
+
+export default memo(Map);
