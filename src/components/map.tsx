@@ -1,9 +1,9 @@
 "use client";
 
-import type { LatLngExpression } from "leaflet";
+import type { LatLngExpression, Map } from "leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect, memo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -28,11 +28,11 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [16, 16],
 });
 
-interface MapViewUpdaterProps {
+interface MapUpdaterProps {
   position: LatLngExpression | null;
 }
 
-function MapViewUpdater({ position }: MapViewUpdaterProps) {
+function MapUpdater({ position }: MapUpdaterProps) {
   const map = useMap();
   useEffect(() => {
     if (position) {
@@ -50,35 +50,34 @@ interface MapProps {
 }
 
 const MapComponent = ({ position, path, plannedRoute, savedRoute }: MapProps) => {
-  const [isMounted, setIsMounted] = useState(false);
+  const [map, setMap] = useState<Map | null>(null);
   const defaultPosition: LatLngExpression = [51.505, -0.09];
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return <div className="h-full w-full bg-muted animate-pulse" />;
-  }
-
+  // We use the `whenCreated` prop to get the map instance.
+  // We only render the children (Markers, Polylines) after the map instance is available.
   return (
     <MapContainer
       center={position || defaultPosition}
       zoom={13}
       scrollWheelZoom={true}
       className="h-full w-full z-0"
+      whenCreated={setMap}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {position && <Marker position={position} icon={userLocationIcon} />}
-      {path.length > 0 && <Polyline positions={path} color="hsl(var(--primary))" weight={5} />}
-      {plannedRoute.length > 0 && <Polyline positions={plannedRoute} color="hsl(var(--accent))" weight={5} dashArray="5, 10" />}
-      {savedRoute && <Polyline positions={savedRoute} color="gray" weight={5} dashArray="5, 5" />}
-      <MapViewUpdater position={position} />
+      {map && (
+        <>
+          {position && <Marker position={position} icon={userLocationIcon} />}
+          {path.length > 0 && <Polyline positions={path} color="hsl(var(--primary))" weight={5} />}
+          {plannedRoute.length > 0 && <Polyline positions={plannedRoute} color="hsl(var(--accent))" weight={5} dashArray="5, 10" />}
+          {savedRoute && <Polyline positions={savedRoute} color="gray" weight={5} dashArray="5, 5" />}
+          <MapUpdater position={position} />
+        </>
+      )}
     </MapContainer>
   );
 };
 
-export default memo(MapComponent);
+export default MapComponent;
