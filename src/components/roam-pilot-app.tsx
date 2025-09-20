@@ -29,6 +29,7 @@ import {
   StopCircle,
   Trash2,
   List,
+  History,
 } from "lucide-react";
 import {
   Sheet,
@@ -55,8 +56,8 @@ export default function RoamPilotApp() {
     setSavedRoutes(updatedRoutes);
     localStorage.setItem("roam-pilot-routes", JSON.stringify(updatedRoutes));
     toast({
-      title: "Route Saved",
-      description: `Route of ${(route.distance / 1000).toFixed(2)} km saved successfully.`,
+      title: "Journey Saved",
+      description: `Your journey of ${(route.distance / 1000).toFixed(2)} km has been saved.`,
     });
   }, [savedRoutes, toast]);
 
@@ -181,7 +182,7 @@ export default function RoamPilotApp() {
     if(loadedSavedRoute?.timestamp === timestamp) {
       setLoadedSavedRoute(null);
     }
-    toast({ title: "Route Deleted" });
+    toast({ title: "Journey Deleted", description: "The saved journey has been removed." });
   };
   
   const pathForMap = useMemo(() => {
@@ -199,7 +200,10 @@ export default function RoamPilotApp() {
   const formatDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    return `${h > 0 ? `${h}h ` : ""}${m}m`;
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
   };
 
   return (
@@ -213,7 +217,6 @@ export default function RoamPilotApp() {
                 routes={savedRoutes}
                 onLoad={handleLoadRoute}
                 onDelete={handleDeleteRoute}
-                onExport={exportToGPX}
               />
             </div>
             
@@ -274,7 +277,7 @@ export default function RoamPilotApp() {
               <CardHeader>
                 <CardTitle className="text-lg">Live Statistics</CardTitle>
                 <CardDescription>
-                  {loadedSavedRoute ? "Displaying saved route stats" : "Real-time tracking data"}
+                  {loadedSavedRoute ? "Displaying saved journey stats" : "Real-time tracking data"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4 text-center">
@@ -307,42 +310,61 @@ export default function RoamPilotApp() {
 }
 
 
-function SavedRoutesSheet({routes, onLoad, onDelete, onExport}: {routes: TrackingSavedRoute[], onLoad: (route: TrackingSavedRoute) => void, onDelete: (timestamp: number) => void, onExport: (path: any, format: "gpx" | "geojson") => void}) {
+function SavedRoutesSheet({routes, onLoad, onDelete}: {routes: TrackingSavedRoute[], onLoad: (route: TrackingSavedRoute) => void, onDelete: (timestamp: number) => void}) {
+  
+  const formatSheetDuration = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h > 0 ? `${h}h ` : ""}${m}m`;
+  };
+
   return (
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="outline" size="icon">
-          <List />
-          <span className="sr-only">Saved Routes</span>
+          <History />
+          <span className="sr-only">Journey History</span>
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Saved Routes</SheetTitle>
+          <SheetTitle>Journey History</SheetTitle>
         </SheetHeader>
         <ScrollArea className="h-[calc(100%-4rem)] mt-4 pr-4">
         {routes.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No routes saved yet.</p>
+            <p className="text-muted-foreground text-sm">No journeys saved yet.</p>
           ) : (
             <div className="space-y-4">
               {routes.sort((a,b) => b.timestamp - a.timestamp).map(route => (
                 <Card key={route.timestamp}>
-                  <CardHeader>
-                    <CardTitle className="text-md">
-                      {new Date(route.timestamp).toLocaleString()}
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-md flex justify-between items-center">
+                      <span>{new Date(route.timestamp).toLocaleString()}</span>
+                       <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => onDelete(route.timestamp)}>
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete Journey</span>
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-sm space-y-1 mb-4">
-                      <p><strong>Distance:</strong> {(route.distance / 1000).toFixed(2)} km</p>
-                      <p><strong>Duration:</strong> {Math.floor(route.duration / 60)} min</p>
-                      <p><strong>Avg Speed:</strong> {route.stats.avgSpeed.toFixed(1)} km/h</p>
+                    <div className="text-sm grid grid-cols-3 gap-2 mb-4">
+                      <div>
+                        <p className="font-bold">{(route.distance / 1000).toFixed(2)}</p> 
+                        <p className="text-xs text-muted-foreground">km</p>
+                      </div>
+                      <div>
+                        <p className="font-bold">{formatSheetDuration(route.duration)}</p> 
+                        <p className="text-xs text-muted-foreground">Duration</p>
+                      </div>
+                      <div>
+                        <p className="font-bold">{route.stats.avgSpeed.toFixed(1)}</p> 
+                        <p className="text-xs text-muted-foreground">Avg km/h</p>
+                      </div>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                      <Button size="sm" variant="secondary" onClick={() => onLoad(route)}>Load on Map</Button>
+                      <Button size="sm" variant="secondary" className="flex-1" onClick={() => onLoad(route)}>Load on Map</Button>
                       <Button size="sm" variant="outline" onClick={() => exportToGPX(route.path)}><Download className="mr-2 h-4 w-4" />GPX</Button>
                       <Button size="sm" variant="outline" onClick={() => exportToGeoJSON(route.path)}><FileJson className="mr-2 h-4 w-4" />GeoJSON</Button>
-                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDelete(route.timestamp)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </CardContent>
                 </Card>
